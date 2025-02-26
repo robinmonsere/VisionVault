@@ -12,3 +12,14 @@ document.querySelectorAll('.folder-tree li').forEach(item => {
         // Later: Load files for this folder
     });
 });
+
+// Placeholder for image upload
+function uploadImages() {
+    const files = document.getElementById('image-upload').files;
+    if (files.length > 0) {
+        alert(`Uploading ${files.length} image(s) to VisionVault`);
+        // Later: Send files to backend for processing
+    } else {
+        alert('Please select some images to upload!');
+    }
+}

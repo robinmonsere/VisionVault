@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionVault</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar for Folder Tree -->
+        <aside class="sidebar">
+            <h2>VisionVault</h2>
+            <ul class="folder-tree" id="folder-tree">
+                <!-- Folders will be populated dynamically -->
+                <li>SpaceX
+                    <ul>
+                        <li>Starship</li>
+                        <li>Falcon 9</li>
+                    </ul>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search files (e.g., 'Starship launch')">
+                <button onclick="searchFiles()">Search</button>
+            </div>
+            <div class="upload-section">
+                <h3>Upload Images</h3>
+                <form id="upload-form" enctype="multipart/form-data">
+                    <input type="file" id="image-upload" accept="image/*" multiple>
+                    <button type="button" onclick="uploadImages()">Upload</button>
+                </form>
+            </div>
+            <div class="file-grid" id="file-grid">
+                <!-- Files and tags will be populated dynamically -->
+                <div class="file-card">
+                    <img src="https://via.placeholder.com/150" alt="Sample Image">
+                    <p>starship1.jpg</p>
+                    <span class="tags">Starship, launch, SpaceX</span>
+                </div>
+                <div class="file-card">
+                    <img src="https://via.placeholder.com/150" alt="Sample Image">
+                    <p>falcon9.jpg</p>
+                    <span class="tags">Falcon 9, orbit, rocket</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
