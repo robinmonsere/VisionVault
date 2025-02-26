@@ -13,13 +13,16 @@
         <aside class="sidebar">
             <h2>VisionVault</h2>
             <ul class="folder-tree" id="folder-tree">
-                <!-- Folders will be populated dynamically -->
-                <li>SpaceX
-                    <ul>
-                        <li>Starship</li>
-                        <li>Falcon 9</li>
-                    </ul>
-                </li>
+                {% macro render_tree(folders) %}
+                    {% for folder in folders %}
+                        <li data-path="{{ folder.name }}">{{ folder.name }}
+                            {% if folder.subfolders %}
+                                <ul>{{ render_tree(folder.subfolders) }}</ul>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                {% endmacro %}
+                {{ render_tree(folder_tree) }}
             </ul>
         </aside>
 
@@ -34,17 +37,7 @@
                 <p>Paste (Ctrl+V) a SpaceX image anywhere on the page to save it.</p>
             </div>
             <div class="file-grid" id="file-grid">
-                <!-- Files and tags will be populated dynamically -->
-                <div class="file-card">
-                    <img src="https://via.placeholder.com/150" alt="Sample Image">
-                    <p>starship1.jpg</p>
-                    <span class="tags">Starship, launch, SpaceX</span>
-                </div>
-                <div class="file-card">
-                    <img src="https://via.placeholder.com/150" alt="Sample Image">
-                    <p>falcon9.jpg</p>
-                    <span class="tags">Falcon 9, orbit, rocket</span>
-                </div>
+                <!-- Files populated dynamically via JS -->
             </div>
         </main>
     </div>

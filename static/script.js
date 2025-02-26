@@ -5,13 +5,41 @@ function searchFiles() {
     // Later: Send query to backend for AI processing
 }
 
-// Placeholder for folder tree interaction
+// Folder tree interaction
 document.querySelectorAll('.folder-tree li').forEach(item => {
     item.addEventListener('click', () => {
-        alert(`Exploring VisionVault folder: ${item.textContent.trim()}`);
-        // Later: Load files for this folder
+        const folderPath = item.getAttribute('data-path');
+        fetchFiles(folderPath);
     });
 });
+
+// Fetch and display files in the selected folder
+function fetchFiles(folderPath) {
+    fetch(`/api/files/${encodeURIComponent(folderPath)}`)
+        .then(response => response.json())
+        .then(files => {
+            const fileGrid = document.getElementById('file-grid');
+            fileGrid.innerHTML = ''; // Clear current files
+            if (files.length === 0) {
+                fileGrid.innerHTML = '<p>No images found in this folder.</p>';
+                return;
+            }
+            files.forEach(file => {
+                const fileCard = document.createElement('div');
+                fileCard.className = 'file-card';
+                fileCard.innerHTML = `
+                    <img src="/static/placeholder.jpg" alt="${file.name}">
+                    <p>${file.name}</p>
+                    <span class="tags">${file.tags}</span>
+                `;
+                fileGrid.appendChild(fileCard);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching files:', error);
+            document.getElementById('file-grid').innerHTML = '<p>Error loading files.</p>';
+        });
+}
 
 // Handle image paste anywhere on the page
 document.addEventListener('paste', (event) => {

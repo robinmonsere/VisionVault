@@ -150,3 +150,9 @@ button:hover {
     color: #aaaaaa;
     word-wrap: break-word;
 }
+
+.file-grid p {
+    color: #aaaaaa;
+    font-size: 1rem;
+    padding: 20px;
+}
