@@ -21,17 +21,25 @@ function fetchFiles(folderPath) {
             const fileGrid = document.getElementById('file-grid');
             fileGrid.innerHTML = ''; // Clear current files
             if (files.length === 0) {
-                fileGrid.innerHTML = '<p>No images found in this folder.</p>';
+                fileGrid.innerHTML = '<p>No files found in this folder.</p>';
                 return;
             }
             files.forEach(file => {
                 const fileCard = document.createElement('div');
                 fileCard.className = 'file-card';
-                fileCard.innerHTML = `
-                    <img src="/static/placeholder.jpg" alt="${file.name}">
-                    <p>${file.name}</p>
-                    <span class="tags">${file.tags}</span>
-                `;
+                if (file.type === 'image') {
+                    fileCard.innerHTML = `
+                        <img src="/static/placeholder.jpg" alt="${file.name}">
+                        <p>${file.name}</p>
+                        <span class="tags">${file.tags}</span>
+                    `;
+                } else {
+                    fileCard.innerHTML = `
+                        <div class="file-icon">${file.type.toUpperCase()}</div>
+                        <p>${file.name}</p>
+                        <span class="tags">${file.tags}</span>
+                    `;
+                }
                 fileGrid.appendChild(fileCard);
             });
         })

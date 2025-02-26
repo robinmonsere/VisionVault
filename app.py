@@ -26,17 +26,20 @@ def get_folder_tree(path):
     return tree
 
 def get_files_in_folder(path):
-    """Get list of files in a folder with basic info."""
+    """Get list of all files in a folder with name, type, and path."""
     files = []
     if not os.path.exists(path):
         return files
     try:
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
-            if os.path.isfile(item_path) and item.lower().endswith(('.jpg', '.jpeg', '.png')):  # Images only for now
+            if os.path.isfile(item_path):
+                file_extension = os.path.splitext(item)[1].lower() or "unknown"
+                file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png') else file_extension[1:]  # Remove dot
                 files.append({
                     "name": item,
                     "path": item_path,
+                    "type": file_type,
                     "tags": "Pending tags"  # Placeholder until Grok API integration
                 })
     except Exception as e:
