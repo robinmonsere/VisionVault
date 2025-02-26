@@ -13,13 +13,12 @@
         <aside class="sidebar">
             <h2>VisionVault</h2>
             <ul class="folder-tree" id="folder-tree">
-                {% macro render_tree(folders) %}
+                {% macro render_tree(folders, level=0) %}
                     {% for folder in folders %}
-                        <li data-path="{{ folder.path }}">{{ folder.name }}
-                            {% if folder.subfolders %}
-                                <ul>{{ render_tree(folder.subfolders) }}</ul>
-                            {% endif %}
-                        </li>
+                        <li data-path="{{ folder.path.replace('\\', '/') }}" data-level="{{ level }}">{{ folder.name }}</li>
+                        {% if folder.subfolders %}
+                            {{ render_tree(folder.subfolders, level + 1) }}
+                        {% endif %}
                     {% endfor %}
                 {% endmacro %}
                 {{ render_tree(folder_tree) }}

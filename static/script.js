@@ -7,9 +7,13 @@ function searchFiles() {
 
 // Folder tree interaction
 document.querySelectorAll('.folder-tree li').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', (event) => {
+        // Prevent bubbling up to parent folders
+        event.stopPropagation();
         const folderPath = item.getAttribute('data-path');
-        fetchFiles(folderPath);
+        if (folderPath) {
+            fetchFiles(folderPath.trim().replace('\\', '/')); // Ensure forward slashes
+        }
     });
 });
 
@@ -21,6 +25,8 @@ function fetchFiles(folderPath) {
         document.getElementById('breadcrumbs').innerHTML = ''; // Clear breadcrumbs
         return;
     }
+    // Normalize path to use forward slashes
+    folderPath = folderPath.replace('\\', '/');
     fetch(`/api/files/${encodeURIComponent(folderPath)}`)
         .then(response => {
             if (!response.ok) {
@@ -47,7 +53,7 @@ function fetchFiles(folderPath) {
                     }
                     if (index < breadcrumbs.length - 1) {
                         span.className = 'breadcrumb clickable';
-                        span.addEventListener('click', () => fetchFiles(crumb.path));
+                        span.addEventListener('click', () => fetchFiles(crumb.path.trim().replace('\\', '/')));
                     } else {
                         span.className = 'breadcrumb current'; // Highlight current folder in white
                     }
@@ -75,7 +81,7 @@ function fetchFiles(folderPath) {
                         <p>${item.name}</p>
                         <span class="tags"></span>
                     `;
-                    fileCard.addEventListener('click', () => fetchFiles(item.path));
+                    fileCard.addEventListener('click', () => fetchFiles(item.path.trim().replace('\\', '/')));
                 } else if (item.type === 'image') {
                     fileCard.innerHTML = `
                         <img src="/files/${encodeURIComponent(item.path)}" alt="${item.name}" onerror="this.src='/static/placeholder.jpg'">

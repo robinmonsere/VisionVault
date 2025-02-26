@@ -48,13 +48,31 @@ body {
 }
 
 .folder-tree li:hover {
-    color: #ffffff;
+    color: #ffffff; /* Only highlight the hovered item */
 }
 
-.folder-tree ul {
-    margin-left: 20px;
-    list-style: none;
+/* Indentation for nested folders */
+.folder-tree li[data-level="0"] {
+    margin-left: 0; /* Top-level folders */
 }
+
+.folder-tree li[data-level="1"] {
+    margin-left: 20px; /* First-level subfolders */
+}
+
+.folder-tree li[data-level="2"] {
+    margin-left: 40px; /* Second-level subfolders */
+}
+
+.folder-tree li[data-level="3"] {
+    margin-left: 60px; /* Third-level subfolders */
+}
+
+.folder-tree li[data-level="4"] {
+    margin-left: 80px; /* Fourth-level subfolders */
+}
+
+/* Add more levels as needed, or use a dynamic approach if deeper nesting is required */
 
 /* Main Content */
 .main-content {
