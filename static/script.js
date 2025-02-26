@@ -13,39 +13,46 @@ document.querySelectorAll('.folder-tree li').forEach(item => {
     });
 });
 
-// Fetch and display files in the selected folder
+// Fetch and display files and folders in the selected folder
 function fetchFiles(folderPath) {
     fetch(`/api/files/${encodeURIComponent(folderPath)}`)
         .then(response => response.json())
-        .then(files => {
+        .then(items => {
             const fileGrid = document.getElementById('file-grid');
-            fileGrid.innerHTML = ''; // Clear current files
-            if (files.length === 0) {
-                fileGrid.innerHTML = '<p>No files found in this folder.</p>';
+            fileGrid.innerHTML = ''; // Clear current items
+            if (items.length === 0) {
+                fileGrid.innerHTML = '<p>No items found in this folder.</p>';
                 return;
             }
-            files.forEach(file => {
+            items.forEach(item => {
                 const fileCard = document.createElement('div');
                 fileCard.className = 'file-card';
-                if (file.type === 'image') {
+                if (item.type === 'folder') {
                     fileCard.innerHTML = `
-                        <img src="/static/placeholder.jpg" alt="${file.name}">
-                        <p>${file.name}</p>
-                        <span class="tags">${file.tags}</span>
+                        <div class="file-icon">FOLDER</div>
+                        <p>${item.name}</p>
+                        <span class="tags"></span>
+                    `;
+                    fileCard.addEventListener('click', () => fetchFiles(item.path));
+                } else if (item.type === 'image') {
+                    fileCard.innerHTML = `
+                        <img src="/static/placeholder.jpg" alt="${item.name}">
+                        <p>${item.name}</p>
+                        <span class="tags">${item.tags}</span>
                     `;
                 } else {
                     fileCard.innerHTML = `
-                        <div class="file-icon">${file.type.toUpperCase()}</div>
-                        <p>${file.name}</p>
-                        <span class="tags">${file.tags}</span>
+                        <div class="file-icon">${item.type.toUpperCase()}</div>
+                        <p>${item.name}</p>
+                        <span class="tags">${item.tags}</span>
                     `;
                 }
                 fileGrid.appendChild(fileCard);
             });
         })
         .catch(error => {
-            console.error('Error fetching files:', error);
-            document.getElementById('file-grid').innerHTML = '<p>Error loading files.</p>';
+            console.error('Error fetching items:', error);
+            document.getElementById('file-grid').innerHTML = '<p>Error loading items.</p>';
         });
 }
 

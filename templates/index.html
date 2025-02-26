@@ -15,7 +15,7 @@
             <ul class="folder-tree" id="folder-tree">
                 {% macro render_tree(folders) %}
                     {% for folder in folders %}
-                        <li data-path="{{ folder.name }}">{{ folder.name }}
+                        <li data-path="{{ folder.path }}">{{ folder.name }}
                             {% if folder.subfolders %}
                                 <ul>{{ render_tree(folder.subfolders) }}</ul>
                             {% endif %}
@@ -37,7 +37,7 @@
                 <p>Paste (Ctrl+V) a SpaceX image anywhere on the page to save it.</p>
             </div>
             <div class="file-grid" id="file-grid">
-                <!-- Files populated dynamically via JS -->
+                <!-- Files and folders populated dynamically via JS -->
             </div>
         </main>
     </div>

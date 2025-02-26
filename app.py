@@ -6,45 +6,57 @@ app = Flask(__name__)
 # Root folder to scan (change this to your preferred path)
 ROOT_FOLDER = r"C:\Users\monse\Pictures\X"
 
-def get_folder_tree(path):
-    """Build a nested dictionary of folders."""
+def get_folder_tree(path, base_path=""):
+    """Build a nested dictionary of folders with full relative paths."""
     tree = []
     if not os.path.exists(path):
-        return [{"name": "No folders found", "subfolders": []}]
+        return [{"name": "No folders found", "path": "", "subfolders": []}]
     try:
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
+            rel_path = os.path.join(base_path, item) if base_path else item
             if os.path.isdir(item_path):
                 folder = {
                     "name": item,
-                    "subfolders": get_folder_tree(item_path)
+                    "path": rel_path,
+                    "subfolders": get_folder_tree(item_path, rel_path)
                 }
                 tree.append(folder)
     except Exception as e:
         print(f"Error scanning folder {path}: {e}")
-        return [{"name": f"Error: {str(e)}", "subfolders": []}]
+        return [{"name": f"Error: {str(e)}", "path": "", "subfolders": []}]
     return tree
 
 def get_files_in_folder(path):
-    """Get list of all files in a folder with name, type, and path."""
-    files = []
+    """Get list of all files and subfolders in a folder."""
+    items = []
     if not os.path.exists(path):
-        return files
+        return items
     try:
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
-            if os.path.isfile(item_path):
-                file_extension = os.path.splitext(item)[1].lower() or "unknown"
-                file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png') else file_extension[1:]  # Remove dot
-                files.append({
+            rel_path = os.path.relpath(item_path, ROOT_FOLDER).replace("\\", "/")  # Normalize to forward slashes
+            if os.path.isdir(item_path):
+                items.append({
                     "name": item,
-                    "path": item_path,
-                    "type": file_type,
-                    "tags": "Pending tags"  # Placeholder until Grok API integration
+                    "path": rel_path,
+                    "type": "folder",
+                    "tags": ""
                 })
+            elif os.path.isfile(item_path):
+                file_extension = os.path.splitext(item)[1].lower() or "unknown"
+                file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png') else file_extension[1:]
+                items.append({
+                    "name": item,
+                    "path": rel_path,
+                    "type": file_type,
+                    "tags": "Pending tags"
+                })
+        # Sort: folders first, then files
+        items.sort(key=lambda x: (x["type"] != "folder", x["name"].lower()))
     except Exception as e:
-        print(f"Error listing files in {path}: {e}")
-    return files
+        print(f"Error listing items in {path}: {e}")
+    return items
 
 # Serve the main page with folder tree
 @app.route('/')
@@ -63,12 +75,12 @@ def api_folder_tree():
     folder_tree = get_folder_tree(ROOT_FOLDER)
     return jsonify(folder_tree)
 
-# API endpoint to fetch files in a folder
+# API endpoint to fetch files and folders in a folder
 @app.route('/api/files/<path:folder_path>')
 def api_files(folder_path):
     full_path = os.path.join(ROOT_FOLDER, folder_path)
-    files = get_files_in_folder(full_path)
-    return jsonify(files)
+    items = get_files_in_folder(full_path)
+    return jsonify(items)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
