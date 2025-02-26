@@ -125,11 +125,19 @@ button:hover {
 
 .breadcrumb.clickable {
     cursor: pointer;
-    color: #007bff;
+    color: #bbbbbb; /* Grey for links instead of blue */
 }
 
 .breadcrumb.clickable:hover {
     text-decoration: underline;
+    color: #e0e0e0; /* Slightly lighter grey on hover */
+}
+
+/* Highlight current folder in breadcrumbs */
+.breadcrumb.current {
+    color: #ffffff; /* White for the current folder */
+    cursor: default;
+    text-decoration: none;
 }
 
 /* File Grid */
