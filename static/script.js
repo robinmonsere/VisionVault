@@ -13,14 +13,54 @@ document.querySelectorAll('.folder-tree li').forEach(item => {
     });
 });
 
-// Fetch and display files and folders in the selected folder
+// Fetch and display files, folders, and breadcrumbs in the selected folder
 function fetchFiles(folderPath) {
+    if (!folderPath) {
+        const fileGrid = document.getElementById('file-grid');
+        fileGrid.innerHTML = '<p>No folder selected. Click a folder to view its contents.</p>';
+        document.getElementById('breadcrumbs').innerHTML = ''; // Clear breadcrumbs
+        return;
+    }
     fetch(`/api/files/${encodeURIComponent(folderPath)}`)
-        .then(response => response.json())
-        .then(items => {
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const { items, breadcrumbs } = data;
             const fileGrid = document.getElementById('file-grid');
+            const breadcrumbsDiv = document.getElementById('breadcrumbs');
             fileGrid.innerHTML = ''; // Clear current items
-            if (items.length === 0) {
+            breadcrumbsDiv.innerHTML = ''; // Clear breadcrumbs
+
+            // Render breadcrumbs if available
+            if (breadcrumbs) {
+                const breadcrumbList = document.createElement('nav');
+                breadcrumbList.className = 'breadcrumb-nav';
+                const parts = breadcrumbs.map((crumb, index) => {
+                    const span = document.createElement('span');
+                    span.textContent = crumb.name;
+                    if (index < breadcrumbs.length - 1) {
+                        span.textContent += ' > ';
+                    }
+                    if (index < breadcrumbs.length - 1) {
+                        span.className = 'breadcrumb clickable';
+                        span.addEventListener('click', () => fetchFiles(crumb.path));
+                    }
+                    return span;
+                });
+                parts.forEach(part => breadcrumbList.appendChild(part));
+                breadcrumbsDiv.appendChild(breadcrumbList);
+            }
+
+            // Render files and folders
+            if (data.error) {
+                fileGrid.innerHTML = `<p>Error: ${data.error}</p>`;
+                return;
+            }
+            if (items.length === 0 || (items.length === 1 && items[0].type === "error")) {
                 fileGrid.innerHTML = '<p>No items found in this folder.</p>';
                 return;
             }
@@ -36,7 +76,7 @@ function fetchFiles(folderPath) {
                     fileCard.addEventListener('click', () => fetchFiles(item.path));
                 } else if (item.type === 'image') {
                     fileCard.innerHTML = `
-                        <img src="/static/placeholder.jpg" alt="${item.name}">
+                        <img src="/files/${encodeURIComponent(item.path)}" alt="${item.name}" onerror="this.src='/static/placeholder.jpg'">
                         <p>${item.name}</p>
                         <span class="tags">${item.tags}</span>
                     `;
@@ -53,6 +93,7 @@ function fetchFiles(folderPath) {
         .catch(error => {
             console.error('Error fetching items:', error);
             document.getElementById('file-grid').innerHTML = '<p>Error loading items.</p>';
+            document.getElementById('breadcrumbs').innerHTML = ''; // Clear breadcrumbs on error
         });
 }
 

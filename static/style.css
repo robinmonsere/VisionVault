@@ -113,6 +113,25 @@ button:hover {
     color: #aaaaaa;
 }
 
+/* Breadcrumbs */
+.breadcrumbs {
+    margin-bottom: 20px;
+}
+
+.breadcrumb-nav {
+    font-size: 0.9rem;
+    color: #e0e0e0;
+}
+
+.breadcrumb.clickable {
+    cursor: pointer;
+    color: #007bff;
+}
+
+.breadcrumb.clickable:hover {
+    text-decoration: underline;
+}
+
 /* File Grid */
 .file-grid {
     display: grid;
@@ -126,6 +145,8 @@ button:hover {
     border-radius: 5px;
     text-align: center;
     transition: transform 0.2s;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .file-card:hover {
@@ -156,12 +177,17 @@ button:hover {
     margin: 5px 0;
     font-size: 0.9rem;
     color: #ffffff;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 .file-card .tags {
     font-size: 0.8rem;
     color: #aaaaaa;
     word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
 }
 
 .file-grid p {
