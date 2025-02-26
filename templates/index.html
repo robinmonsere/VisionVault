@@ -29,12 +29,9 @@
                 <input type="text" id="search-input" placeholder="Search files (e.g., 'Starship launch')">
                 <button onclick="searchFiles()">Search</button>
             </div>
-            <div class="upload-section">
-                <h3>Upload Images</h3>
-                <form id="upload-form" enctype="multipart/form-data">
-                    <input type="file" id="image-upload" accept="image/*" multiple>
-                    <button type="button" onclick="uploadImages()">Upload</button>
-                </form>
+            <div class="paste-section">
+                <h3>Paste Anywhere</h3>
+                <p>Paste (Ctrl+V) a SpaceX image anywhere on the page to save it.</p>
             </div>
             <div class="file-grid" id="file-grid">
                 <!-- Files and tags will be populated dynamically -->

@@ -13,13 +13,21 @@ document.querySelectorAll('.folder-tree li').forEach(item => {
     });
 });
 
-// Placeholder for image upload
-function uploadImages() {
-    const files = document.getElementById('image-upload').files;
-    if (files.length > 0) {
-        alert(`Uploading ${files.length} image(s) to VisionVault`);
-        // Later: Send files to backend for processing
-    } else {
-        alert('Please select some images to upload!');
+// Handle image paste anywhere on the page
+document.addEventListener('paste', (event) => {
+    const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+    for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+            const blob = item.getAsFile();
+            savePastedImage(blob);
+            event.preventDefault();
+        }
+    }
+});
+
+function savePastedImage(blob) {
+    if (blob) {
+        alert('Saving pasted SpaceX image to VisionVault');
+        // Later: Send blob to backend for processing and storage
     }
 }
