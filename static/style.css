@@ -220,7 +220,6 @@ button:hover {
     text-align: center;
     padding: 20px;
 }
-
 /* File Edit Popup Modal */
 .modal {
     display: none;
@@ -301,10 +300,32 @@ button:hover {
     background-color: #0056b3;
 }
 
-.modal .delete-btn {
+.delete-btn {
     background-color: #dc3545; /* Red for danger */
 }
 
-.modal .delete-btn:hover {
+.delete-btn:hover {
     background-color: #c82333;
+}
+
+/* New orange button class for AI updates */
+.ai-update-btn {
+    background-color: #ff9800 !important; /* Orange */
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 700;
+    margin: 5px 0;
+}
+
+.ai-update-btn:hover {
+    background-color: #f57c00 !important; /* Darker orange on hover */
+}
+
+/* Style the folder view AI button */
+#update-all-tags-btn {
+    margin: 10px 0;
+    display: block;
 }

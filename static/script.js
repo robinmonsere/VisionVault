@@ -1,7 +1,7 @@
 // Placeholder for search functionality
 function searchFiles() {
-    const query = document.getElementById('search-input').value;
-    if (!query.trim()) {
+    const query = document.getElementById('search-input').value.trim();
+    if (!query) {
         alert('Please enter a search query.');
         return;
     }
@@ -12,29 +12,35 @@ function searchFiles() {
             }
             return response.json();
         })
-        .then(results => {
+        .then(data => {
             const fileGrid = document.getElementById('file-grid');
             const breadcrumbsDiv = document.getElementById('breadcrumbs');
             fileGrid.innerHTML = ''; // Clear current items
-            breadcrumbsDiv.innerHTML = '<nav class="breadcrumb-nav">Search Results</nav>'; // Simple breadcrumb for search
+            breadcrumbsDiv.innerHTML = ''; // Clear breadcrumbs
 
-            if (results.error) {
-                fileGrid.innerHTML = `<p>Error: ${results.error}</p>`;
+            if (data.error) {
+                fileGrid.innerHTML = `<p>Error: ${data.error}</p>`;
                 return;
             }
-            if (results.length === 0) {
+            if (data.items.length === 0) {
                 fileGrid.innerHTML = '<p>No results found.</p>';
                 return;
             }
-            results.forEach(item => {
+
+            // Render breadcrumbs
+            const breadcrumbList = document.createElement('nav');
+            breadcrumbList.className = 'breadcrumb-nav';
+            const crumb = document.createElement('span');
+            crumb.textContent = data.breadcrumbs[0].name;
+            crumb.className = 'breadcrumb current';
+            breadcrumbList.appendChild(crumb);
+            breadcrumbsDiv.appendChild(breadcrumbList);
+
+            // Render search results
+            data.items.forEach(item => {
                 const fileCard = document.createElement('div');
                 fileCard.className = 'file-card';
-                // Extract file extension from path using JavaScript
-                const fileParts = item.path.split('.');
-                const fileExtension = fileParts.length > 1 ? fileParts.pop().toLowerCase() : "unknown";
-                const fileType = fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png' || fileExtension === 'webp' ? 'image' : fileExtension;
-
-                if (fileType === 'image') {
+                if (item.type === 'image') {
                     fileCard.innerHTML = `
                         <img src="/files/${encodeURIComponent(item.path)}" alt="${item.name}" onerror="this.src='/static/placeholder.jpg'">
                         <p>${item.name}</p>
@@ -42,7 +48,7 @@ function searchFiles() {
                     `;
                 } else {
                     fileCard.innerHTML = `
-                        <div class="file-icon">${fileType.toUpperCase()}</div>
+                        <div class="file-icon">${item.type.toUpperCase()}</div>
                         <p>${item.name}</p>
                         <span class="tags">${item.tags}</span>
                     `;
@@ -56,7 +62,7 @@ function searchFiles() {
         .catch(error => {
             console.error('Error searching files:', error);
             document.getElementById('file-grid').innerHTML = '<p>Error searching files.</p>';
-            document.getElementById('breadcrumbs').innerHTML = ''; // Clear breadcrumbs on error
+            document.getElementById('breadcrumbs').innerHTML = '';
         });
 }
 

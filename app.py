@@ -52,19 +52,14 @@ def toggle_hidden_file(filepath, hide=True):
         if not os.path.exists(filepath):
             logger.error(f"File does not exist: {filepath}")
             return
-
         current_attrs = win32file.GetFileAttributes(filepath)
-
         if hide:
             # Add the hidden flag
             new_attrs = current_attrs | win32con.FILE_ATTRIBUTE_HIDDEN
         else:
             # Remove the hidden flag
             new_attrs = current_attrs & ~win32con.FILE_ATTRIBUTE_HIDDEN
-
-        # Apply new attributes
         win32file.SetFileAttributes(filepath, new_attrs)
-
         logger.info(f"{'Hid' if hide else 'Unhid'} {filepath} successfully")
     except Exception as e:
         logger.error(f"Error toggling hidden attribute for {filepath}: {e}")
@@ -91,6 +86,60 @@ def process_image(file_path):
         return ["Pending tags"], "Error processing image"
 
 
+def read_tags_file(tags_file):
+    """Read tags from a .tags.txt file and return a dictionary."""
+    tags_data = {}
+    if os.path.exists(tags_file):
+        try:
+            toggle_hidden_file(tags_file, hide=False)  # Unhide before reading
+            with open(tags_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if ':' in line:
+                        parts = line.strip().split(':', 3)
+                        if len(parts) == 4:
+                            filename, file_format, tags, desc = parts
+                            tags_data[filename] = {"format": file_format, "tags": tags, "description": desc}
+            logger.info(f"Successfully read and closed {tags_file}")
+            toggle_hidden_file(tags_file, hide=True)  # Re-hide after reading
+        except PermissionError as e:
+            logger.error(f"Permission denied reading {tags_file}: {e}")
+        except Exception as e:
+            logger.error(f"Error reading tags for {tags_file}: {e}")
+    return tags_data
+
+
+def write_tags_file(tags_file, tags_data):
+    """Write tags to a .tags.txt file."""
+    try:
+        toggle_hidden_file(tags_file, hide=False)  # Unhide before writing
+        with open(tags_file, 'w', encoding='utf-8') as f:
+            for filename, data in tags_data.items():
+                f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
+        get_file_attributes(tags_file)  # Log attributes after writing
+        logger.info(f"Successfully wrote and closed {tags_file}")
+        toggle_hidden_file(tags_file, hide=True)  # Re-hide after writing
+    except PermissionError as e:
+        logger.error(f"Permission denied writing to {tags_file}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error writing tags for {tags_file}: {e}")
+        raise
+
+
+def update_root_tags(root_tags_file, full_path, tags_data_entry, action="update"):
+    """Update the root .tags.txt with a full path entry."""
+    root_tags = read_tags_file(root_tags_file)
+    if action == "update" or action == "add":
+        root_tags[full_path] = tags_data_entry
+    elif action == "delete":
+        root_tags.pop(full_path, None)
+    try:
+        write_tags_file(root_tags_file, root_tags)
+    except Exception as e:
+        logger.warning(f"Root .tags.txt out of sync: {e}. Sync will be corrected on restart with initialize_tags()")
+        raise
+
+
 def update_tags(folder_path):
     """Scan a folder, process only untagged files, and update .tags.txt (hidden file)."""
     full_path = os.path.join(ROOT_FOLDER, folder_path) if folder_path else ROOT_FOLDER
@@ -98,23 +147,7 @@ def update_tags(folder_path):
         return
     tags_data = {}
     tags_file = os.path.join(full_path, '.tags.txt')
-    existing_tags = {}
-    if os.path.exists(tags_file):
-        try:
-            with open(tags_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if ':' in line:
-                        parts = line.strip().split(':', 3)
-                        if len(parts) == 4:
-                            filename, file_format, tags, desc = parts
-                            existing_tags[filename] = {"format": file_format, "tags": tags, "description": desc}
-            logger.info(f"Successfully read and closed {tags_file}")
-        except PermissionError as e:
-            logger.error(f"Permission denied reading {tags_file}: {e}")
-            return jsonify({"error": f"Permission denied: {str(e)}. Grant read/write permissions to {tags_file}."}), 500
-        except Exception as e:
-            logger.error(f"Error reading tags for {full_path}: {e}")
-            return
+    existing_tags = read_tags_file(tags_file)
     try:
         for item in os.listdir(full_path):
             item_path = os.path.join(full_path, item)
@@ -122,83 +155,58 @@ def update_tags(folder_path):
                 file_extension = os.path.splitext(item)[1].lower() or "unknown"
                 file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png', '.webp') else file_extension[1:]
                 if item not in existing_tags or existing_tags[item]["tags"] == "Pending tags":
-                    if file_type == "image":
-                        tags, description = process_image(item_path)
-                    else:
-                        tags, description = ["Pending tags"], "No description available"
+                    # Note: process_image() is not called here as per your request, to be handled later
+                    tags = ["Pending tags"]  # Placeholder until process_image() is used
+                    description = "No description available"  # Placeholder
                     tags_data[item] = {"format": file_type, "tags": ", ".join(tags), "description": description}
                 else:
                     tags_data[item] = existing_tags[item]
         if tags_data:
-            try:
-                toggle_hidden_file(tags_file, hide=False)  # Unhide before writing
-                with open(tags_file, 'w', encoding='utf-8') as f:
-                    for filename, data in tags_data.items():
-                        f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-                get_file_attributes(tags_file)  # Log attributes after writing
-                logger.info(f"Successfully wrote and closed {tags_file}")
-                toggle_hidden_file(tags_file, hide=True)  # Re-hide after writing
-            except PermissionError as e:
-                logger.error(f"Permission denied writing to {tags_file}: {e}")
-                return jsonify(
-                    {"error": f"Permission denied: {str(e)}. Grant write permissions to {tags_file} and retry."}), 500
-            except Exception as e:
-                logger.error(f"Error writing tags for {full_path}: {e}")
-                return
+            write_tags_file(tags_file, tags_data)
+            rel_path = os.path.relpath(full_path, ROOT_FOLDER).replace("\\", "/")
+            for item, data in tags_data.items():
+                full_item_path = os.path.join(rel_path, item).replace("\\", "/")
+                update_root_tags(os.path.join(ROOT_FOLDER, '.tags.txt'), full_item_path, data)
     except Exception as e:
         logger.error(f"Error updating tags for {full_path}: {e}")
 
 
 def initialize_tags():
-    """Scan all folders and files, ensuring every non-hidden file is listed in .tags.txt with 'untagged' status, without AI processing."""
+    """Scan all folders and files, ensuring every non-hidden file is listed in subfolder and root .tags.txt."""
+    root_tags_file = os.path.join(ROOT_FOLDER, '.tags.txt')
+    all_tags = {}
     for root, dirs, files in os.walk(ROOT_FOLDER):
         rel_root = os.path.relpath(root, ROOT_FOLDER)
-        full_path = os.path.join(ROOT_FOLDER, rel_root)
-        tags_file = os.path.join(full_path, '.tags.txt')
-        existing_tags = {}
-        if os.path.exists(tags_file):
-            try:
-                with open(tags_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if ':' in line:
-                            parts = line.strip().split(':', 3)
-                            if len(parts) == 4:
-                                filename, file_format, tags, desc = parts
-                                existing_tags[filename] = {"format": file_format, "tags": tags, "description": desc}
-                logger.info(f"Successfully read and closed {tags_file}")
-            except PermissionError as e:
-                logger.error(f"Permission denied reading {tags_file}: {e}")
-                continue
-            except Exception as e:
-                logger.error(f"Error reading tags for {full_path}: {e}")
-                continue
+        full_path_base = rel_root if rel_root != "." else ""
+        tags_file = os.path.join(root, '.tags.txt')
+        existing_tags = read_tags_file(tags_file)
         tags_data = existing_tags.copy()
+        for item in files:
+            item_path = os.path.join(root, item)
+            if os.path.isfile(item_path) and not is_hidden(item_path):
+                full_item_path = os.path.join(full_path_base, item).replace("\\", "/")
+                file_extension = os.path.splitext(item)[1].lower() or "unknown"
+                file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png', '.webp') else file_extension[1:]
+                if item not in existing_tags or existing_tags[item]["tags"] == "Pending tags":
+                    # Note: process_image() is not called here as per your request, to be handled later
+                    tags = ["untagged"]  # Placeholder until process_image() is used
+                    description = "No description available"  # Placeholder
+                    tags_data[item] = {"format": file_type, "tags": ", ".join(tags), "description": description}
+                    all_tags[full_item_path] = tags_data[item]
+                else:
+                    all_tags[full_item_path] = existing_tags[item]
+        if tags_data:
+            try:
+                write_tags_file(tags_file, tags_data)
+            except Exception as e:
+                logger.error(f"Failed to update {tags_file}: {e}")
+                continue
+    # Write to root .tags.txt
+    if all_tags:
         try:
-            for item in files:
-                item_path = os.path.join(full_path, item)
-                if os.path.isfile(item_path) and not is_hidden(item_path):
-                    file_extension = os.path.splitext(item)[1].lower() or "unknown"
-                    file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png', '.webp') else file_extension[1:]
-                    if item not in tags_data:
-                        tags_data[item] = {"format": file_type, "tags": "untagged",
-                                           "description": "No description available"}
-            if tags_data:
-                try:
-                    toggle_hidden_file(tags_file, hide=False)  # Unhide before writing
-                    with open(tags_file, 'w', encoding='utf-8') as f:
-                        for filename, data in tags_data.items():
-                            f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-                    get_file_attributes(tags_file)  # Log attributes after writing
-                    logger.info(f"Successfully wrote and closed {tags_file}")
-                    toggle_hidden_file(tags_file, hide=True)  # Re-hide after writing
-                except PermissionError as e:
-                    logger.error(f"Permission denied writing to {tags_file}: {e}")
-                    continue
-                except Exception as e:
-                    logger.error(f"Error writing tags for {full_path}: {e}")
-                    continue
+            write_tags_file(root_tags_file, all_tags)
         except Exception as e:
-            logger.error(f"Error initializing tags for {full_path}: {e}")
+            logger.error(f"Failed to initialize root .tags.txt: {e}")
 
 
 def get_folder_tree(path, base_path=""):
@@ -230,6 +238,8 @@ def get_files_in_folder(path):
         return items  # Return empty if path doesn't exist or isn't specified
     try:
         effective_path = os.path.join(ROOT_FOLDER, path)
+        tags_file = os.path.join(effective_path, '.tags.txt')
+        existing_tags = read_tags_file(tags_file)
         for item in os.listdir(effective_path):
             item_path = os.path.join(effective_path, item)
             rel_path = os.path.relpath(item_path, ROOT_FOLDER).replace("\\", "/")  # Normalize to forward slashes
@@ -243,38 +253,15 @@ def get_files_in_folder(path):
             elif os.path.isfile(item_path) and not is_hidden(item_path):
                 file_extension = os.path.splitext(item)[1].lower() or "unknown"
                 file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png', '.webp') else file_extension[1:]
-                # Read tags from .tags.txt if it exists
-                tags = "untagged"  # Default to "untagged" for consistency
-                description = "No description available"
-                tags_file = os.path.join(effective_path, '.tags.txt')
-                if os.path.exists(tags_file):
-                    try:
-                        with open(tags_file, 'r', encoding='utf-8') as f:
-                            for line in f:
-                                if line.startswith(item + ':'):
-                                    parts = line.strip().split(':', 3)
-                                    if len(parts) == 4:
-                                        _, file_format, tag_string, desc = parts
-                                        tags = tag_string
-                                        description = desc
-                                    break
-                        logger.info(f"Successfully read and closed {tags_file}")
-                    except PermissionError as e:
-                        logger.error(f"Permission denied reading {tags_file}: {e}")
-                        tags = "untagged"
-                        description = "Permission error"
-                    except Exception as e:
-                        logger.error(f"Error reading tags for {item_path}: {e}")
-                        tags = "untagged"
-                        description = "Error reading tags"
+                tags = existing_tags.get(item, {}).get("tags", "untagged")
+                description = existing_tags.get(item, {}).get("description", "No description available")
                 items.append({
-                    "name": item,  # Keep full name, let CSS handle wrapping
+                    "name": item,
                     "path": rel_path,
                     "type": file_type,
                     "tags": tags,
-                    "description": description  # Add description to items for future use
+                    "description": description
                 })
-        # Sort: folders first, then files
         items.sort(key=lambda x: (x["type"] != "folder", x["name"].lower()))
     except Exception as e:
         logger.error(f"Error listing items in {effective_path}: {e}")
@@ -316,21 +303,14 @@ def api_folder_tree():
 def api_files(folder_path):
     try:
         items = get_files_in_folder(folder_path)
-        # Generate breadcrumbs if folder_path exists
         breadcrumbs = []
         if folder_path:
             current_path = ""
             for part in folder_path.split('/'):
                 if part:
                     current_path = os.path.join(current_path, part) if current_path else part
-                    breadcrumbs.append({
-                        "name": part,
-                        "path": current_path
-                    })
-        return jsonify({
-            "items": items,
-            "breadcrumbs": breadcrumbs if breadcrumbs else None
-        })
+                    breadcrumbs.append({"name": part, "path": current_path})
+        return jsonify({"items": items, "breadcrumbs": breadcrumbs if breadcrumbs else None})
     except Exception as e:
         logger.error(f"API error for folder_path {folder_path}: {e}")
         return jsonify({"error": str(e)}), 500
@@ -340,7 +320,17 @@ def api_files(folder_path):
 @app.route('/api/update-tags/<path:folder_path>', methods=['POST'])
 def update_folder_tags(folder_path):
     try:
+        full_path = os.path.join(ROOT_FOLDER, folder_path) if folder_path else ROOT_FOLDER
+        tags_file = os.path.join(full_path, '.tags.txt')
+        root_tags_file = os.path.join(ROOT_FOLDER, '.tags.txt')
         update_tags(folder_path)
+        rel_path = os.path.relpath(full_path, ROOT_FOLDER).replace("\\", "/")
+        for item in os.listdir(full_path):
+            if os.path.isfile(os.path.join(full_path, item)) and not is_hidden(os.path.join(full_path, item)):
+                full_item_path = os.path.join(rel_path, item).replace("\\", "/")
+                tags_data = read_tags_file(tags_file).get(item, {"format": "unknown", "tags": "untagged",
+                                                                 "description": "No description available"})
+                update_root_tags(root_tags_file, full_item_path, tags_data)
         return jsonify({"status": "success"})
     except Exception as e:
         logger.error(f"Error updating tags for {folder_path}: {e}")
@@ -356,46 +346,21 @@ def update_file(file_path):
         new_tags = data.get('tags', 'untagged')
         new_description = data.get('description', 'No description available')
 
-        # Parse the folder path and current filename from file_path
         folder_path = os.path.dirname(file_path) if file_path else ""
         current_name = os.path.basename(file_path)
 
         full_path = os.path.join(ROOT_FOLDER, folder_path)
         tags_file = os.path.join(full_path, '.tags.txt')
+        root_tags_file = os.path.join(ROOT_FOLDER, '.tags.txt')
 
         if not os.path.exists(full_path) or not os.path.isfile(os.path.join(full_path, current_name)):
             return jsonify({"error": "File not found"}), 404
 
-        existing_tags = {}
+        existing_tags = read_tags_file(tags_file)
         updated = False
-        if os.path.exists(tags_file):
-            try:
-                with open(tags_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if ':' in line:
-                            parts = line.strip().split(':', 3)
-                            if len(parts) == 4:
-                                filename, file_format, tags, desc = parts
-                                existing_tags[filename] = {
-                                    "format": file_format,
-                                    "tags": tags,
-                                    "description": desc
-                                }
-                logger.info(f"Successfully read and closed {tags_file}")
-            except PermissionError as e:
-                logger.error(f"Permission denied reading {tags_file}: {e}")
-                return jsonify({
-                                   "error": f"Permission denied: {str(e)}. Please grant read/write permissions to {tags_file} and retry."}), 500
-            except Exception as e:
-                logger.error(f"Error reading tags for {tags_file}: {e}")
-                return jsonify({"error": str(e)}), 500
-
-        # Get current file details
-        file_extension = os.path.splitext(current_name)[1].lower() or "unknown"
-        file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png', '.webp') else file_extension[1:]
-
-        # Update or add the file entry
         if current_name in existing_tags:
+            file_extension = os.path.splitext(current_name)[1].lower() or "unknown"
+            file_type = "image" if file_extension in ('.jpg', '.jpeg', '.png', '.webp') else file_extension[1:]
             existing_tags[current_name] = {
                 "format": file_type,
                 "tags": new_tags if new_tags != "untagged" else existing_tags[current_name]["tags"],
@@ -403,10 +368,9 @@ def update_file(file_path):
             }
             updated = True
 
-        # If renaming, handle the file rename on disk and update tags.txt
         if new_name and new_name != current_name:
             new_full_path = os.path.join(full_path, new_name)
-            if not os.path.exists(new_full_path):  # Only rename if new name doesn't exist
+            if not os.path.exists(new_full_path):
                 try:
                     os.rename(os.path.join(full_path, current_name), new_full_path)
                     if current_name in existing_tags:
@@ -423,22 +387,15 @@ def update_file(file_path):
                     logger.error(f"Error renaming file {current_name}: {e}")
                     return jsonify({"error": str(e)}), 500
 
-        # Write updated tags to .tags.txt
-        if updated and existing_tags:
+        if updated:
             try:
-                toggle_hidden_file(tags_file, hide=False)  # Unhide before writing
-                with open(tags_file, 'w', encoding='utf-8') as f:
-                    for filename, data in existing_tags.items():
-                        f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-                get_file_attributes(tags_file)  # Log attributes after writing
-                logger.info(f"Successfully wrote and closed {tags_file}")
-                toggle_hidden_file(tags_file, hide=True)  # Re-hide after writing
-            except PermissionError as e:
-                logger.error(f"Permission denied writing to {tags_file}: {e}")
-                return jsonify({
-                                   "error": f"Permission denied: {str(e)}. Please grant write permissions to {tags_file} and retry."}), 500
+                write_tags_file(tags_file, existing_tags)
+                rel_path = os.path.relpath(full_path, ROOT_FOLDER).replace("\\", "/")
+                full_item_path = os.path.join(rel_path, new_name if new_name else current_name).replace("\\", "/")
+                update_root_tags(root_tags_file, full_item_path,
+                                 existing_tags.get(new_name if new_name else current_name))
             except Exception as e:
-                logger.error(f"Error writing tags for {tags_file}: {e}")
+                logger.error(f"Failed to update {tags_file} or root: {e}")
                 return jsonify({"error": str(e)}), 500
 
         return jsonify(
@@ -452,24 +409,22 @@ def update_file(file_path):
 @app.route('/api/delete-file/<path:file_path>', methods=['DELETE'])
 def delete_file(file_path):
     try:
-        # Parse the folder path and filename from file_path
         folder_path = os.path.dirname(file_path) if file_path else ""
         current_name = os.path.basename(file_path)
 
         full_path = os.path.join(ROOT_FOLDER, folder_path)
         file_full_path = os.path.join(full_path, current_name)
         tags_file = os.path.join(full_path, '.tags.txt')
+        root_tags_file = os.path.join(ROOT_FOLDER, '.tags.txt')
 
         if not os.path.exists(file_full_path) or not os.path.isfile(file_full_path):
             return jsonify({"error": "File not found"}), 404
 
-        # Delete the file from disk
         try:
             os.remove(file_full_path)
             logger.info(f"Successfully deleted file: {file_full_path}")
         except PermissionError as e:
-            logger.error(f"Permission warning for deleting {file_full_path}, but file may still be deleted: {e}")
-            # Check if the file was actually deleted despite the permission error
+            logger.error(f"Permission warning for deleting {file_full_path}: {e}")
             if not os.path.exists(file_full_path):
                 logger.info(f"File {file_full_path} was deleted despite permission warning.")
             else:
@@ -478,46 +433,18 @@ def delete_file(file_path):
             logger.error(f"Error deleting file {file_full_path}: {e}")
             return jsonify({"error": str(e)}), 500
 
-        # Update .tags.txt by removing the file entry
         if os.path.exists(tags_file):
             try:
-                toggle_hidden_file(tags_file, hide=False)  # Unhide before writing
-                with open(tags_file, 'r', encoding='utf-8') as f:
-                    existing_tags = {}
-                    for line in f:
-                        if ':' in line:
-                            parts = line.strip().split(':', 3)
-                            if len(parts) == 4 and parts[0] != current_name:
-                                filename, file_format, tags, desc = parts
-                                existing_tags[filename] = {
-                                    "format": file_format,
-                                    "tags": tags,
-                                    "description": desc
-                                }
-                logger.info(f"Successfully read and closed {tags_file}")
-
-                if existing_tags:
-                    with open(tags_file, 'w', encoding='utf-8') as f:
-                        for filename, data in existing_tags.items():
-                            f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-                    get_file_attributes(tags_file)  # Log attributes after writing
-                    logger.info(f"Successfully wrote and closed {tags_file}")
-                    toggle_hidden_file(tags_file, hide=True)  # Re-hide after writing
-                else:
-                    # If no entries remain, delete .tags.txt
-                    try:
-                        os.remove(tags_file)
-                        try:
-                            win32file.SetFileAttributes(tags_file,
-                                                        win32con.FILE_ATTRIBUTE_HIDDEN)  # Ensure it’s marked as hidden if deletion fails
-                        except Exception as e:
-                            logger.warning(f"Could not set hidden attribute after deleting {tags_file}: {e}")
-                    except Exception as e:
-                        logger.error(f"Error deleting empty {tags_file}: {e}")
+                existing_tags = read_tags_file(tags_file)
+                if current_name in existing_tags:
+                    del existing_tags[current_name]
+                    write_tags_file(tags_file, existing_tags)
+                rel_path = os.path.relpath(full_path, ROOT_FOLDER).replace("\\", "/")
+                full_item_path = os.path.join(rel_path, current_name).replace("\\", "/")
+                update_root_tags(root_tags_file, full_item_path, None, action="delete")
             except PermissionError as e:
                 logger.error(f"Permission denied updating {tags_file}: {e}")
-                return jsonify({
-                                   "error": f"Permission denied: {str(e)}. Please grant write permissions to {tags_file} and retry."}), 500
+                return jsonify({"error": f"Permission denied: {str(e)}. Grant write permissions to {tags_file}."}), 500
             except Exception as e:
                 logger.error(f"Error updating tags for {tags_file}: {e}")
                 return jsonify({"error": str(e)}), 500
@@ -525,6 +452,52 @@ def delete_file(file_path):
         return jsonify({"status": "success"})
     except Exception as e:
         logger.error(f"Error deleting file {file_path}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Search endpoint
+@app.route('/api/search')
+def search_files():
+    try:
+        query = request.args.get('q', '').lower()
+        if not query:
+            return jsonify({"error": "Please provide a search query."}), 400
+
+        root_tags_file = os.path.join(ROOT_FOLDER, '.tags.txt')
+        results = []
+        if os.path.exists(root_tags_file):
+            toggle_hidden_file(root_tags_file, hide=False)  # Unhide before reading
+            try:
+                with open(root_tags_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if ':' in line:
+                            parts = line.strip().split(':', 3)
+                            if len(parts) == 4:
+                                full_path, file_format, tags, desc = parts
+                                if (query in full_path.lower() or
+                                        query in tags.lower() or
+                                        query in desc.lower()):
+                                    results.append({
+                                        "name": os.path.basename(full_path),
+                                        "path": full_path,
+                                        "type": file_format,
+                                        "tags": tags,
+                                        "description": desc
+                                    })
+                logger.info(f"Successfully read and closed {root_tags_file}")
+            except PermissionError as e:
+                logger.error(f"Permission denied reading {root_tags_file}: {e}")
+                return jsonify(
+                    {"error": f"Permission denied: {str(e)}. Grant read permissions to {root_tags_file}."}), 500
+            except Exception as e:
+                logger.error(f"Error reading {root_tags_file}: {e}")
+                return jsonify({"error": str(e)}), 500
+            finally:
+                toggle_hidden_file(root_tags_file, hide=True)  # Re-hide after reading
+
+        return jsonify({"items": results, "breadcrumbs": [{"name": f"Search Results for '{query}'", "path": ""}]})
+    except Exception as e:
+        logger.error(f"Error searching files: {e}")
         return jsonify({"error": str(e)}), 500
 
 
