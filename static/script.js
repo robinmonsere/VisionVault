@@ -53,7 +53,7 @@ function fetchFiles(folderPath) {
                     }
                     if (index < breadcrumbs.length - 1) {
                         span.className = 'breadcrumb clickable';
-                        span.addEventListener('click', () => fetchFiles(crumb.path.trim().replace('\\', '/')));
+                        span.addEventListener('click', () => fetchFiles(crumb.path.trim().replace('\\', '/'))); // Normalize path here
                     } else {
                         span.className = 'breadcrumb current'; // Highlight current folder in white
                     }
