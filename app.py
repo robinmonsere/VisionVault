@@ -68,17 +68,24 @@ def update_tags(folder_path):
     existing_tags = {}
     # Load existing tags if .tags.txt exists
     if os.path.exists(tags_file):
-        with open(tags_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                if ':' in line:
-                    parts = line.strip().split(':', 3)  # Split into name, format, tags, description
-                    if len(parts) == 4:
-                        filename, file_format, tags, desc = parts
-                        existing_tags[filename] = {
-                            "format": file_format,
-                            "tags": tags,
-                            "description": desc
-                        }
+        try:
+            with open(tags_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if ':' in line:
+                        parts = line.strip().split(':', 3)  # Split into name, format, tags, description
+                        if len(parts) == 4:
+                            filename, file_format, tags, desc = parts
+                            existing_tags[filename] = {
+                                "format": file_format,
+                                "tags": tags,
+                                "description": desc
+                            }
+        except PermissionError as e:
+            print(f"Permission denied reading {tags_file}: {e}")
+            return
+        except Exception as e:
+            print(f"Error reading tags for {full_path}: {e}")
+            return
 
     try:
         for item in os.listdir(full_path):
@@ -102,14 +109,21 @@ def update_tags(folder_path):
                     tags_data[item] = existing_tags[item]  # Use existing tags and description
         # Write or update .tags.txt in the folder and hide it on Windows
         if tags_data:
-            with open(tags_file, 'w', encoding='utf-8') as f:
-                for filename, data in tags_data.items():
-                    f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-            # Set the file as hidden on Windows
             try:
-                win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                with open(tags_file, 'w', encoding='utf-8') as f:
+                    for filename, data in tags_data.items():
+                        f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
+                # Set the file as hidden on Windows
+                try:
+                    win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                except Exception as e:
+                    print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+            except PermissionError as e:
+                print(f"Permission denied writing to {tags_file}: {e}")
+                return
             except Exception as e:
-                print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+                print(f"Error writing tags for {full_path}: {e}")
+                return
     except Exception as e:
         print(f"Error updating tags for {full_path}: {e}")
 
@@ -123,17 +137,24 @@ def initialize_tags():
         existing_tags = {}
         # Load existing tags if .tags.txt exists
         if os.path.exists(tags_file):
-            with open(tags_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if ':' in line:
-                        parts = line.strip().split(':', 3)
-                        if len(parts) == 4:
-                            filename, file_format, tags, desc = parts
-                            existing_tags[filename] = {
-                                "format": file_format,
-                                "tags": tags,
-                                "description": desc
-                            }
+            try:
+                with open(tags_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if ':' in line:
+                            parts = line.strip().split(':', 3)
+                            if len(parts) == 4:
+                                filename, file_format, tags, desc = parts
+                                existing_tags[filename] = {
+                                    "format": file_format,
+                                    "tags": tags,
+                                    "description": desc
+                                }
+            except PermissionError as e:
+                print(f"Permission denied reading {tags_file}: {e}")
+                continue
+            except Exception as e:
+                print(f"Error reading tags for {full_path}: {e}")
+                continue
 
         tags_data = existing_tags.copy()
         try:
@@ -150,14 +171,21 @@ def initialize_tags():
                         }
             # Write or update .tags.txt in the folder and hide it on Windows
             if tags_data:
-                with open(tags_file, 'w', encoding='utf-8') as f:
-                    for filename, data in tags_data.items():
-                        f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-                # Set the file as hidden on Windows
                 try:
-                    win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                    with open(tags_file, 'w', encoding='utf-8') as f:
+                        for filename, data in tags_data.items():
+                            f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
+                    # Set the file as hidden on Windows
+                    try:
+                        win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                    except Exception as e:
+                        print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+                except PermissionError as e:
+                    print(f"Permission denied writing to {tags_file}: {e}")
+                    continue
                 except Exception as e:
-                    print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+                    print(f"Error writing tags for {full_path}: {e}")
+                    continue
         except Exception as e:
             print(f"Error initializing tags for {full_path}: {e}")
 
@@ -209,15 +237,24 @@ def get_files_in_folder(path):
                 description = "No description available"
                 tags_file = os.path.join(effective_path, '.tags.txt')
                 if os.path.exists(tags_file):
-                    with open(tags_file, 'r', encoding='utf-8') as f:
-                        for line in f:
-                            if line.startswith(item + ':'):
-                                parts = line.strip().split(':', 3)
-                                if len(parts) == 4:
-                                    _, file_format, tag_string, desc = parts
-                                    tags = tag_string
-                                    description = desc
-                                break
+                    try:
+                        with open(tags_file, 'r', encoding='utf-8') as f:
+                            for line in f:
+                                if line.startswith(item + ':'):
+                                    parts = line.strip().split(':', 3)
+                                    if len(parts) == 4:
+                                        _, file_format, tag_string, desc = parts
+                                        tags = tag_string
+                                        description = desc
+                                    break
+                    except PermissionError as e:
+                        print(f"Permission denied reading {tags_file}: {e}")
+                        tags = "untagged"
+                        description = "Permission error"
+                    except Exception as e:
+                        print(f"Error reading tags for {item_path}: {e}")
+                        tags = "untagged"
+                        description = "Error reading tags"
                 items.append({
                     "name": item,  # Keep full name, let CSS handle wrapping
                     "path": rel_path,
@@ -320,17 +357,24 @@ def update_file(file_path):
         existing_tags = {}
         updated = False
         if os.path.exists(tags_file):
-            with open(tags_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if ':' in line:
-                        parts = line.strip().split(':', 3)
-                        if len(parts) == 4:
-                            filename, file_format, tags, desc = parts
-                            existing_tags[filename] = {
-                                "format": file_format,
-                                "tags": tags,
-                                "description": desc
-                            }
+            try:
+                with open(tags_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if ':' in line:
+                            parts = line.strip().split(':', 3)
+                            if len(parts) == 4:
+                                filename, file_format, tags, desc = parts
+                                existing_tags[filename] = {
+                                    "format": file_format,
+                                    "tags": tags,
+                                    "description": desc
+                                }
+            except PermissionError as e:
+                print(f"Permission denied reading {tags_file}: {e}")
+                return jsonify({"error": f"Permission denied: {str(e)}"}), 500
+            except Exception as e:
+                print(f"Error reading tags for {tags_file}: {e}")
+                return jsonify({"error": str(e)}), 500
 
         # Get current file details
         file_extension = os.path.splitext(current_name)[1].lower() or "unknown"
@@ -349,30 +393,123 @@ def update_file(file_path):
         if new_name and new_name != current_name:
             new_full_path = os.path.join(full_path, new_name)
             if not os.path.exists(new_full_path):  # Only rename if new name doesn't exist
-                os.rename(os.path.join(full_path, current_name), new_full_path)
-                if current_name in existing_tags:
-                    existing_tags[new_name] = existing_tags.pop(current_name)
-                    existing_tags[new_name]["format"] = file_type
-                    existing_tags[new_name]["tags"] = new_tags if new_tags != "untagged" else existing_tags[new_name][
-                        "tags"]
-                    existing_tags[new_name]["description"] = new_description
-                    updated = True
+                try:
+                    os.rename(os.path.join(full_path, current_name), new_full_path)
+                    if current_name in existing_tags:
+                        existing_tags[new_name] = existing_tags.pop(current_name)
+                        existing_tags[new_name]["format"] = file_type
+                        existing_tags[new_name]["tags"] = new_tags if new_tags != "untagged" else \
+                        existing_tags[new_name]["tags"]
+                        existing_tags[new_name]["description"] = new_description
+                        updated = True
+                except PermissionError as e:
+                    print(f"Permission denied renaming {current_name} to {new_name}: {e}")
+                    return jsonify({"error": f"Permission denied: {str(e)}"}), 500
+                except Exception as e:
+                    print(f"Error renaming file {current_name}: {e}")
+                    return jsonify({"error": str(e)}), 500
 
         # Write updated tags to .tags.txt
         if updated and existing_tags:
-            with open(tags_file, 'w', encoding='utf-8') as f:
-                for filename, data in existing_tags.items():
-                    f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
-            # Ensure .tags.txt remains hidden
             try:
-                win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                with open(tags_file, 'w', encoding='utf-8') as f:
+                    for filename, data in existing_tags.items():
+                        f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
+                # Ensure .tags.txt remains hidden
+                try:
+                    win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                except Exception as e:
+                    print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+            except PermissionError as e:
+                print(f"Permission denied writing to {tags_file}: {e}")
+                return jsonify({"error": f"Permission denied: {str(e)}"}), 500
             except Exception as e:
-                print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+                print(f"Error writing tags for {tags_file}: {e}")
+                return jsonify({"error": str(e)}), 500
 
         return jsonify(
             {"status": "success", "new_path": os.path.join(folder_path, new_name) if new_name else file_path})
     except Exception as e:
         print(f"Error updating file {file_path}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Delete file and update .tags.txt
+@app.route('/api/delete-file/<path:file_path>', methods=['DELETE'])
+def delete_file(file_path):
+    try:
+        # Parse the folder path and filename from file_path
+        folder_path = os.path.dirname(file_path) if file_path else ""
+        current_name = os.path.basename(file_path)
+
+        full_path = os.path.join(ROOT_FOLDER, folder_path)
+        file_full_path = os.path.join(full_path, current_name)
+        tags_file = os.path.join(full_path, '.tags.txt')
+
+        if not os.path.exists(file_full_path) or not os.path.isfile(file_full_path):
+            return jsonify({"error": "File not found"}), 404
+
+        # Delete the file from disk
+        try:
+            os.remove(file_full_path)
+            print(f"Successfully deleted file: {file_full_path}")
+        except PermissionError as e:
+            print(f"Permission warning for deleting {file_full_path}, but file may still be deleted: {e}")
+            # Check if the file was actually deleted despite the permission error
+            if not os.path.exists(file_full_path):
+                print(f"File {file_full_path} was deleted despite permission warning.")
+            else:
+                return jsonify({"error": f"Permission denied: {str(e)}"}), 500
+        except Exception as e:
+            print(f"Error deleting file {file_full_path}: {e}")
+            return jsonify({"error": str(e)}), 500
+
+        # Update .tags.txt by removing the file entry
+        if os.path.exists(tags_file):
+            try:
+                existing_tags = {}
+                with open(tags_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if ':' in line:
+                            parts = line.strip().split(':', 3)
+                            if len(parts) == 4 and parts[0] != current_name:
+                                filename, file_format, tags, desc = parts
+                                existing_tags[filename] = {
+                                    "format": file_format,
+                                    "tags": tags,
+                                    "description": desc
+                                }
+
+                if existing_tags:
+                    with open(tags_file, 'w', encoding='utf-8') as f:
+                        for filename, data in existing_tags.items():
+                            f.write(f"{filename}:{data['format']}:{data['tags']}:{data['description']}\n")
+                    # Ensure .tags.txt remains hidden
+                    try:
+                        win32file.SetFileAttributes(tags_file, win32con.FILE_ATTRIBUTE_HIDDEN)
+                    except Exception as e:
+                        print(f"Warning: Could not set hidden attribute for {tags_file}: {e}")
+                else:
+                    # If no entries remain, delete .tags.txt
+                    try:
+                        os.remove(tags_file)
+                        try:
+                            win32file.SetFileAttributes(tags_file,
+                                                        win32con.FILE_ATTRIBUTE_HIDDEN)  # Ensure it’s marked as hidden if deletion fails
+                        except Exception as e:
+                            print(f"Warning: Could not set hidden attribute after deleting {tags_file}: {e}")
+                    except Exception as e:
+                        print(f"Error deleting empty {tags_file}: {e}")
+            except PermissionError as e:
+                print(f"Permission denied updating {tags_file}: {e}")
+                return jsonify({"error": f"Permission denied: {str(e)}"}), 500
+            except Exception as e:
+                print(f"Error updating tags for {tags_file}: {e}")
+                return jsonify({"error": str(e)}), 500
+
+        return jsonify({"status": "success"})
+    except Exception as e:
+        print(f"Error deleting file {file_path}: {e}")
         return jsonify({"error": str(e)}), 500
 
 

@@ -294,8 +294,17 @@ button:hover {
     color: #ffffff;
     cursor: pointer;
     font-weight: 700;
+    margin-right: 10px;
 }
 
 .modal button:hover {
     background-color: #0056b3;
+}
+
+.modal .delete-btn {
+    background-color: #dc3545; /* Red for danger */
+}
+
+.modal .delete-btn:hover {
+    background-color: #c82333;
 }

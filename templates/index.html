@@ -48,7 +48,7 @@
     <!-- File Edit Popup Modal -->
     <div id="file-edit-modal" class="modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <span class="close-btn" onclick="closeModal()">×</span>
             <h3>Edit File</h3>
             <form id="file-edit-form">
                 <label for="file-name">Name:</label>
@@ -58,6 +58,7 @@
                 <label for="file-description">Description:</label>
                 <textarea id="file-description" name="description"></textarea>
                 <button type="submit">Save Changes</button>
+                <button type="button" id="delete-button" class="delete-btn">Delete</button>
             </form>
         </div>
     </div>

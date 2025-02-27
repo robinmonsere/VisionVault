@@ -29,9 +29,12 @@ function searchFiles() {
             results.forEach(item => {
                 const fileCard = document.createElement('div');
                 fileCard.className = 'file-card';
-                const fileExtension = os.path.splitext(item.path)[1].lower() or "unknown"
-                file_type = "image" if fileExtension in ('.jpg', '.jpeg', '.png', '.webp') else fileExtension[1:]
-                if (file_type === 'image') {
+                // Extract file extension from path using JavaScript
+                const fileParts = item.path.split('.');
+                const fileExtension = fileParts.length > 1 ? fileParts.pop().toLowerCase() : "unknown";
+                const fileType = fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png' || fileExtension === 'webp' ? 'image' : fileExtension;
+
+                if (fileType === 'image') {
                     fileCard.innerHTML = `
                         <img src="/files/${encodeURIComponent(item.path)}" alt="${item.name}" onerror="this.src='/static/placeholder.jpg'">
                         <p>${item.name}</p>
@@ -39,7 +42,7 @@ function searchFiles() {
                     `;
                 } else {
                     fileCard.innerHTML = `
-                        <div class="file-icon">${file_type.toUpperCase()}</div>
+                        <div class="file-icon">${fileType.toUpperCase()}</div>
                         <p>${item.name}</p>
                         <span class="tags">${item.tags}</span>
                     `;
@@ -228,7 +231,14 @@ function showFileEditModal(filePath, currentName, currentTags, currentDescriptio
             }
         } catch (error) {
             console.error('Error updating file:', error);
-            alert('Error updating file.');
+            alert('Error updating file. Check console for details.');
+        }
+    };
+
+    // Add delete button functionality with confirmation
+    document.getElementById('delete-button').onclick = () => {
+        if (confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+            deleteFile(filePath);
         }
     };
 }
@@ -237,4 +247,26 @@ function showFileEditModal(filePath, currentName, currentTags, currentDescriptio
 function closeModal() {
     document.getElementById('file-edit-modal').style.display = 'none';
     document.getElementById('file-edit-form').onsubmit = null; // Reset form submission
+    document.getElementById('delete-button').onclick = null; // Reset delete button handler
+}
+
+// Delete file via API
+async function deleteFile(filePath) {
+    try {
+        const response = await fetch(`/api/delete-file/${encodeURIComponent(filePath)}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.error) {
+            alert(`Error deleting file: ${data.error}`);
+        } else {
+            alert('File deleted successfully!');
+            // Refresh the current folder
+            const folderPath = filePath.split('/').slice(0, -1).join('/');
+            fetchFiles(folderPath);
+        }
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        alert('Error deleting file. Check console for details.');
+    }
 }
